@@ -1,0 +1,319 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  extensions = [postgis]
+}
+
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum MatchingMode {
+  AUTO
+  MANUAL
+  BOTH
+}
+
+enum MatchType {
+  AUTOMATED
+  MANUAL
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum Intent {
+  MARRIAGE
+  FRIENDSHIP
+  LONGTERMRELATIONSHIP
+  SHORTTERMRELATIONSHIP
+  CASUAL
+  NOTSURE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  TRANSMAN
+  TRANSWOMAN
+  NONBINARY
+  OTHER
+}
+
+enum Sexuality {
+  HETEROSEXUAL
+  HOMOSEXUAL
+  BISEXUAL
+  PANSEXUAL
+  ASEXUAL
+}
+
+enum MaritalStatus {
+  SINGLE
+  DIVORCED
+  SEPARATED
+  WIDOWED
+  ANNULLED
+  NEVERMARRIED
+}
+
+enum Religion {
+  ISLAM
+  CHRISTIANITY
+  HINDUISM
+  BUDDHISM
+  JUDAISM
+  AGNOSTIC
+  ATHEIST
+  OTHER
+}
+
+enum Children {
+  NONE
+  HAS_ONE
+  HAS_TWO
+  MORE_THAN_TWO
+}
+
+enum ChildPreference {
+  WANT_CHILDREN
+  DO_NOT_WANT_CHILDREN
+  OPEN_TO_CHILDREN
+  NOT_SURE_YET
+}
+
+enum TwoOptions {
+  YES
+  NO
+}
+
+enum Timeline {
+  IMMEDIATELY
+  UNDERTWOMONTHS
+  TWOTOSIXMONTHS
+  OVERAYEAR
+  AGREETOGETHER
+  NOT_SURE_YET
+}
+
+enum Education {
+  BASIC
+  SECONDARY
+  UNDERGRADUATE
+  GRADUATE
+  MASTERS
+  DOCTORAL
+  OTHER
+}
+
+enum MatchAction {
+  NONE
+  APPROVED
+  DECLINED
+}
+
+enum DrinkingHabit {
+  NEVER
+  SOCIAL
+  REGULAR
+  HEAVY
+}
+
+enum SmokingHabit {
+  NEVER
+  SOCIAL
+  REGULAR
+  TRYING_TO_QUIT
+}
+
+enum Diet {
+  OMNIVORE
+  VEGETARIAN
+  VEGAN
+  HALAL
+  KOSHER
+  OTHER
+}
+
+enum LoveLanguage {
+  WORDS_OF_AFFIRMATION
+  QUALITY_TIME
+  RECEIVING_GIFTS
+  ACTS_OF_SERVICE
+  PHYSICAL_TOUCH
+}
+
+enum CommunicationStyle {
+  TEXTER
+  CALLER
+  VIDEO_CHATTER
+  IN_PERSON
+}
+
+enum PoliticalView {
+  LIBERAL
+  CONSERVATIVE
+  MODERATE
+  APOLITICAL
+  OTHER
+}
+
+
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  phone        String?    @unique
+  passwordHash String
+  latitude     Float?
+  longitude    Float?
+  
+  
+  status       UserStatus @default(ACTIVE)
+  isVerified   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  profile      Profile?
+  filters      Filters?
+  settings     Settings?
+
+
+  matchesAsOne Match[]    @relation("UserOneMatches")
+  matchesAsTwo Match[]    @relation("UserTwoMatches")
+}
+
+model Profile {
+  id                    Int                 @id @default(autoincrement())
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                Int                 @unique
+  firstName             String
+  lastName              String?
+  gender                Gender
+  sexualPreference      Sexuality
+  birthDate             DateTime
+  occupation            String?
+  industry              String?
+  company               String?
+  educationLevel        Education?
+  school                String?
+  intent                Intent
+  tagline               String?
+  introVideo            String?
+  introVoice            String?
+  grewUpIn              String?
+  heightinCM            Int?
+  maritalStatus         MaritalStatus
+  religiousView         Religion
+  hasChildren           Children            @default(NONE)
+  wantsChildren         ChildPreference     @default(NOT_SURE_YET)
+  willRelocate          TwoOptions          @default(NO)
+  marriageTimeline      Timeline            @default(NOT_SURE_YET)
+  chattingTimeline      Timeline            @default(NOT_SURE_YET)
+  familyInvolvement     Timeline            @default(NOT_SURE_YET)
+  drinker               DrinkingHabit       @default(NEVER)
+  smoker                SmokingHabit        @default(NEVER)
+  dietaryPreference     Diet                @default(OMNIVORE)
+  primaryLoveLanguage   LoveLanguage?
+  communicationStyle    CommunicationStyle? @default(IN_PERSON)
+  politicalView         PoliticalView?      @default(APOLITICAL)
+  timelineNote          String?
+  bio                   String?
+  
+  interests             String[]
+  personality           String[]
+  iceBreakers           String[]
+  languages             String[]
+  ethnicity             String[]
+  nationality           String
+  countryOfOrigin       String?
+  
+
+  idealMatchDescription String?
+  idealMatchKeywords    String[]
+}
+
+model Filters {
+  id                 Int             @id @default(autoincrement())
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             Int             @unique
+  maxDistance        Int             @default(50)
+  minAge             Int             @default(18)
+  maxAge             Int             @default(40)
+  genderPreference   Gender?
+  sexualPreference   Sexuality?
+  religion           Religion?
+  intent             Intent?
+  educationLevel     Education?
+  maritalStatus      MaritalStatus?
+  hasChildren        Children?
+  wantsChildren      ChildPreference?
+  drinker            DrinkingHabit?
+  smoker             SmokingHabit?
+  dietaryPreference  Diet?
+  politicalView      PoliticalView?
+  willRelocate       TwoOptions?
+  
+  interests          String[]
+  personality        String[]
+  languages          String[]
+  ethnicities        String[]
+  nationalities      String[]
+  
+  matchingPreference MatchingMode    @default(BOTH)
+}
+
+model Settings {
+  id                 Int      @id @default(autoincrement())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             Int      @unique
+  enableNotification Boolean  @default(false)
+  previewMessage     Boolean  @default(false)
+  language           String?  @default("en")
+  visibility         Boolean  @default(true)
+  blockList          Int[]    
+  
+  
+  lastActive         DateTime @default(now()) @updatedAt
+}
+
+model Match {
+  id            Int          @id @default(autoincrement())
+  userOneId     Int
+  userTwoId     Int
+  userOne       User         @relation("UserOneMatches", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo       User         @relation("UserTwoMatches", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  type          MatchType
+  status        MatchStatus  @default(PENDING)
+  
+  
+  score         Int          @default(0)
+  
+ 
+  matchmakerNote String?     
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  expiresAt     DateTime
+  
+  userOneAction MatchAction? @default(NONE)
+  userTwoAction MatchAction? @default(NONE)
+
+  @@unique([userOneId, userTwoId])
+}

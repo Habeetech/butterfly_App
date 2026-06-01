@@ -1,0 +1,5 @@
+### root endpoint
+http://localhost:3000
+
+### get all users
+http://localhost:3000/api/users

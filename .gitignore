@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Env
+.env
+*.env
+.env.*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Prisma
+generated/
+prisma/generated/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
