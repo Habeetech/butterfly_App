@@ -1,22 +1,22 @@
 import "dotenv/config";
 import prisma from "../src/config/db.js";
 import { faker } from "@faker-js/faker";
-import { discoverProfiles } from "../src/modules/discover/discover.services.js";
+import { autoMatchmaker } from "../src/modules/match/match.services.js";
 
 const interestsPool = [
-    "Cooking", "Baking", "Pastry Arts", "Tech", "Board Games", 
-    "Photography", "Travel", "Running", "Fitness", "Reading", 
+    "Cooking", "Baking", "Pastry Arts", "Tech", "Board Games",
+    "Photography", "Travel", "Running", "Fitness", "Reading",
     "Hiking", "Gardening", "Volunteering", "Podcasts", "Public Speaking"
 ];
-
+const compatibleInterests = ["Tech", "Cooking", "Travel", "Baking", "Board Games", "Pastry Arts"];
+const compatiblePersonality = ["Analytical", "Empathetic", "Ambitious", "Creative", "Structured"];
 const personalityPool = [
-    "Introvert", "Extrovert", "Ambivert", "Analytical", "Creative", 
+    "Introvert", "Extrovert", "Ambivert", "Analytical", "Creative",
     "Empathetic", "Detail-oriented", "Spontaneous", "Structured", "Ambitious"
 ];
 
 const languagesPool = ["English", "Yoruba", "Hausa", "Igbo", "Arabic", "French", "Spanish"];
 const ethnicityPool = ["Yoruba", "Hausa", "Igbo", "Edo", "Fulani", "Other"];
-const keywordsPool = ["Kind", "Ambitious", "Family-oriented", "Tech-savvy", "Foodie", "Punctual", "Deen-focused"];
 const iceBreakersPool = [
     "What's your absolute dream travel destination?",
     "Are you a morning person or a night owl?",
@@ -33,12 +33,12 @@ function createUser() {
     };
 }
 
-const mockUsers = faker.helpers.multiple(createUser, { count: 20 });
+
+const mockUsers = faker.helpers.multiple(createUser, { count: 1000 });
 
 export async function seedData() {
     console.log("Cleaning up existing database records...");
 
-    // Clear tables in sequential dependency order to prevent foreign key deadlocks
     await prisma.match?.deleteMany();
     await prisma.filters?.deleteMany();
     await prisma.settings?.deleteMany();
@@ -46,7 +46,7 @@ export async function seedData() {
     await prisma.user?.deleteMany();
 
     console.log("Seeding main test account (Habeeb)...");
-    
+
     const currentUser = await prisma.user.create({
         data: {
             email: "testuser@gmail.com",
@@ -93,7 +93,6 @@ export async function seedData() {
                     personality: ["Analytical", "Creative", "Ambitious"],
                     languages: ["English", "Yoruba"],
                     ethnicity: ["Yoruba"],
-                    idealMatchKeywords: ["Kind", "Family-oriented", "Ambitious"],
                     iceBreakers: ["What's your favorite project you've worked on?"]
                 }
             },
@@ -107,8 +106,6 @@ export async function seedData() {
                     religion: "ISLAM",
                     intent: "MARRIAGE",
                     matchingPreference: "BOTH",
-                    interests: ["Cooking", "Travel"],
-                    personality: ["Empathetic"]
                 }
             },
             settings: {
@@ -122,24 +119,102 @@ export async function seedData() {
         }
     });
 
-    console.log(`Seeding ${mockUsers.length} diverse mock user profiles...`);
+    console.log("Seeding 5 GUARANTEED perfect match profiles with array variances...");
 
-    for (const mockUser of mockUsers) {
-        const randomGender = faker.helpers.arrayElement(["MALE", "FEMALE", "NONBINARY"]);
-        const targetGenderPref = randomGender === "MALE" ? "FEMALE" : "MALE";
+    for (let i = 0; i < 5; i++) {
+        const perfectLat = 51.5074 + faker.number.float({ min: -0.05, max: 0.05 });
+        const perfectLng = -0.1278 + faker.number.float({ min: -0.05, max: 0.05 });
+        const perfectBirthDate = faker.date.birthdate({ min: 22, max: 30, mode: 'age' });
 
         await prisma.user.create({
+            data: {
+                email: `perfect_match_${i}@example.com`,
+                passwordHash: "securehash",
+                longitude: perfectLng,
+                latitude: perfectLat,
+                status: "ACTIVE",
+                isVerified: true,
+                profile: {
+                    create: {
+                        firstName: faker.person.firstName("female"),
+                        lastName: faker.person.lastName(),
+                        gender: "FEMALE",
+                        sexualPreference: "HETEROSEXUAL",
+                        birthDate: perfectBirthDate,
+                        religiousView: "ISLAM",
+                        wantsChildren: "WANT_CHILDREN",
+                        marriageTimeline: "TWOTOSIXMONTHS",
+                        willRelocate: "YES",
+                        drinker: "NEVER",
+                        smoker: "NEVER",
+                        occupation: faker.person.jobTitle(),
+                        industry: faker.person.jobArea(),
+                        company: faker.company.name(),
+                        educationLevel: "GRADUATE",
+                        school: faker.company.name() + " University",
+                        intent: "MARRIAGE",
+                        tagline: faker.company.catchPhrase(),
+                        bio: `Guaranteed matching profile candidate number ${i + 1}`,
+                        grewUpIn: "London",
+                        heightinCM: faker.number.int({ min: 160, max: 175 }),
+                        maritalStatus: "SINGLE",
+                        hasChildren: "NONE",
+                        dietaryPreference: "HALAL",
+                        primaryLoveLanguage: "QUALITY_TIME",
+                        communicationStyle: "IN_PERSON",
+                        nationality: "British",
+                        countryOfOrigin: "Nigeria",
+                        interests: faker.helpers.arrayElements(compatibleInterests, { min: 2, max: 4 }),
+                        personality: faker.helpers.arrayElements(compatiblePersonality, { min: 2, max: 4 }),
+                        languages: faker.helpers.arrayElement([["English"], ["English", "Yoruba"]]),
+                        ethnicity: ["Yoruba"],
+                        iceBreakers: faker.helpers.arrayElements(iceBreakersPool, { min: 1, max: 2 })
+                    }
+                },
+                filters: {
+                    create: {
+                        maxDistance: 30,
+                        minAge: 24,
+                        maxAge: 38,
+                        genderPreference: "MALE",
+                        sexualPreference: "HETEROSEXUAL",
+                        religion: "ISLAM",
+                        matchingPreference: "BOTH"
+                    }
+                },
+                settings: {
+                    create: {
+                        enableNotification: true,
+                        previewMessage: true,
+                        language: "en",
+                        visibility: true
+                    }
+                }
+            }
+        });
+    }
+
+    console.log(`Mapping ${mockUsers.length} pure random baseline profiles to data pipelines...`);
+
+  
+    const concurrentSeedingPromises = mockUsers.map((mockUser) => {
+        const randomGender = faker.helpers.arrayElement(["MALE", "FEMALE", "NONBINARY"]);
+        const targetGenderPref = randomGender === "MALE" ? "FEMALE" : "MALE";
+        const randomReligion = faker.helpers.arrayElement(["ISLAM", "CHRISTIANITY", "OTHER"]);
+        const randomSexualPreference = faker.helpers.arrayElement(["HETEROSEXUAL", "BISEXUAL", "HOMOSEXUAL"]);
+
+        return prisma.user.create({
             data: {
                 ...mockUser,
                 status: "ACTIVE",
                 isVerified: faker.datatype.boolean(0.8),
                 profile: {
                     create: {
-                        firstName: faker.person.firstName(),
+                        firstName: faker.person.firstName(randomGender.toLowerCase() as any),
                         lastName: faker.person.lastName(),
                         gender: randomGender,
-                        sexualPreference: faker.helpers.arrayElement(["HETEROSEXUAL", "BISEXUAL"]),
-                        birthDate: faker.date.birthdate({ min: 18, max: 40, mode: 'age' }), 
+                        sexualPreference: randomSexualPreference,
+                        birthDate: faker.date.birthdate({ min: 18, max: 40, mode: 'age' }),
                         occupation: faker.person.jobTitle(),
                         industry: faker.person.jobArea(),
                         company: faker.company.name(),
@@ -151,7 +226,7 @@ export async function seedData() {
                         grewUpIn: faker.location.city(),
                         heightinCM: faker.number.int({ min: 155, max: 198 }),
                         maritalStatus: faker.helpers.arrayElement(["SINGLE", "DIVORCED"]),
-                        religiousView: faker.helpers.arrayElement(["ISLAM", "CHRISTIANITY", "OTHER"]),
+                        religiousView: randomReligion,
                         hasChildren: faker.helpers.arrayElement(["NONE", "HAS_ONE"]),
                         wantsChildren: faker.helpers.arrayElement(["WANT_CHILDREN", "OPEN_TO_CHILDREN", "NOT_SURE_YET"]),
                         willRelocate: faker.helpers.arrayElement(["YES", "NO"]),
@@ -167,12 +242,11 @@ export async function seedData() {
                         nationality: faker.location.country(),
                         countryOfOrigin: faker.location.country(),
                         idealMatchDescription: faker.lorem.sentence(),
-                        
+
                         interests: faker.helpers.arrayElements(interestsPool, { min: 2, max: 5 }),
                         personality: faker.helpers.arrayElements(personalityPool, { min: 2, max: 4 }),
                         languages: faker.helpers.arrayElements(languagesPool, { min: 1, max: 3 }),
                         ethnicity: faker.helpers.arrayElements(ethnicityPool, { min: 1, max: 1 }),
-                        idealMatchKeywords: faker.helpers.arrayElements(keywordsPool, { min: 2, max: 4 }),
                         iceBreakers: faker.helpers.arrayElements(iceBreakersPool, { min: 1, max: 2 })
                     }
                 },
@@ -182,9 +256,9 @@ export async function seedData() {
                         minAge: 18,
                         maxAge: faker.number.int({ min: 35, max: 45 }),
                         genderPreference: targetGenderPref,
+                        sexualPreference: randomSexualPreference, 
+                        religion: randomReligion,
                         matchingPreference: faker.helpers.arrayElement(["AUTO", "MANUAL", "BOTH"]),
-                        interests: faker.helpers.arrayElements(interestsPool, { min: 1, max: 2 }),
-                        personality: faker.helpers.arrayElements(personalityPool, { min: 1, max: 2 }),
                         languages: [faker.helpers.arrayElement(languagesPool)]
                     }
                 },
@@ -198,21 +272,24 @@ export async function seedData() {
                 }
             }
         });
-    }
+    });
 
-    console.log(`Database seeded successfully with a test user and ${mockUsers.length} robust profiles!`);
-    console.log("\n--- RUNNING INITIAL GEOSPATIAL DISCOVERY TEST ---");
+    console.log(`Executing concurrent writes for ${concurrentSeedingPromises.length} baseline entries...`);
+    await Promise.all(concurrentSeedingPromises);
+
+    console.log(`\nDatabase completely populated! Main Account + 5 Golden Matches + ${mockUsers.length} Random baseline entries.`);
+    console.log("\n--- EXECUTING ENGINE VERIFICATION TEST ---");
 
     try {
-        const matches = await discoverProfiles(currentUser.id.toString());
-        console.log(`Found ${matches.length} matching profiles nearby:\n`);
+        const matches = await autoMatchmaker(currentUser.id.toString());
+        console.log(`Success! Matchmaker Engine fetched ${matches?.length || 0} valid candidates passing thresholds:\n`);
 
-        matches.forEach((match, index) => {
+        matches?.forEach((match, index) => {
             const distanceKm = (match.distance_meters / 1000).toFixed(2);
-            console.log(`${index + 1}. User ID: ${match.id} | Distance: ${distanceKm} km | Coords: (${match.longitude}, ${match.latitude})`);
+            console.log(`${index + 1}. Candidate ID: ${match.id} | Compatibility Score: ${match.score} pts | Distance: ${distanceKm} km`);
         });
     } catch (error) {
-        console.error("Discovery query verification failed:", error);
+        console.error("Engine execution verification failed:", error);
     }
     console.log("------------------------------------------");
 }
