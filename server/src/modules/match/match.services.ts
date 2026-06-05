@@ -2,6 +2,9 @@ import prisma from "@server/config/db"
 import AppError from "@server/utils/AppError"
 import { discoverProfiles } from "../discover/discover.services";
 import { Prisma } from "server/generated/prisma/client";
+import { match } from "node:assert";
+import { profile } from "node:console";
+import { fa } from "@faker-js/faker";
 
 export async function autoMatchmaker(userId: string) {
     const id = parseInt(userId);
@@ -151,10 +154,10 @@ export async function autoMatchmaker(userId: string) {
     const bestPotentials = betterPotentials
         .filter(p => p.score >= 60)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
+        .slice(0, 20);
 
     if (bestPotentials.length === 0) {
-         console.log("No best potentials found");
+        console.log("No best potentials found");
         return [];
     }
 
@@ -172,10 +175,6 @@ export async function autoMatchmaker(userId: string) {
     for (const potential of bestPotentials) {
         const userOneId = Math.min(id, potential.id)
         const userTwoId = Math.max(id, potential.id)
-
-        const twoDaysAfter = new Date();
-        twoDaysAfter.setDate(today.getDate() + 2);
-
 
         const historicalMatch = existingMatches.find(
             m => m.userOneId === userOneId && m.userTwoId === userTwoId
@@ -205,4 +204,128 @@ export async function autoMatchmaker(userId: string) {
         })
     }
     return bestPotentials;
+}
+
+export async function getPotentials(userId: string, skip = 0) {
+    const id = parseInt(userId);
+    if (!id) {
+        throw new AppError("Invalid or missing User ID", 404)
+    }
+    const potentials = await prisma.match.findMany({
+        where: {
+            status: "PENDING",
+            OR: [{ userOneId: id },
+            { userTwoId: id }
+            ]
+        },
+        include: {
+            userOne: {
+                include: { profile: true }
+            },
+            userTwo: {
+                include: { profile: true }
+            }
+        },
+        orderBy: {
+            score: "desc"
+        },
+        take: 30,
+        skip: skip
+    })
+    return potentials.map(match => {
+        const candidate = match.userOneId === id ? match.userTwo : match.userOne;
+
+        return {
+            matchId: match.id,
+            score: match.score,
+            status: match.status,
+            type: match.type,
+            expiresAt: match.expiresAt,
+            profile: candidate?.profile || null
+        }
+    });
+}
+export async function getAllUsersPotentials() {
+
+    return await prisma.match.findMany({
+        where: {
+            status: "PENDING"
+        },
+        orderBy: {
+            createdAt: "desc"
+        }
+    })
+
+}
+export async function userAction(userId: string, match: any) {
+    const id = parseInt(userId)
+    if (!id) {
+        throw new AppError("Invalid or missing User ID", 404)
+    }
+
+    const matchToUpdate = await prisma.match.findUnique({
+        where: { id: match.id }
+    })
+
+    if (!matchToUpdate) {
+        throw new AppError("The match does not exist", 404);
+    }
+
+    const isUserOne = matchToUpdate.userOneId === id;
+    const isUserTwo = matchToUpdate.userTwoId === id;
+
+    if (!isUserOne && !isUserTwo) {
+        throw new AppError("User is not a participant in this match", 403);
+    }
+
+    let updatedMatch;
+    let isMatch = false;
+
+    const today = new Date();
+    const threeDays = new Date();
+    threeDays.setDate(today.getDate() + 3);
+
+
+    const expiry = matchToUpdate.expiresAt ? matchToUpdate.expiresAt : threeDays;
+
+  
+    const currentOneAction = isUserOne ? match.action : matchToUpdate.userOneAction;
+    const currentTwoAction = isUserTwo ? match.action : matchToUpdate.userTwoAction;
+
+  
+    if (match.action === "DECLINED") {
+        updatedMatch = await prisma.match.update({
+            where: { id: matchToUpdate.id },
+            data: {
+                status: "REJECTED",
+                userOneAction: currentOneAction,
+                userTwoAction: currentTwoAction,
+                expiresAt: null
+            }
+        });
+    }
+    else if (match.action === "APPROVED" && (isUserOne ? matchToUpdate.userTwoAction === "APPROVED" : matchToUpdate.userOneAction === "APPROVED")) {
+        updatedMatch = await prisma.match.update({
+            where: { id: matchToUpdate.id },
+            data: {
+                status: "ACCEPTED",
+                userOneAction: currentOneAction,
+                userTwoAction: currentTwoAction,
+                expiresAt: threeDays
+            }
+        });
+        isMatch = true;
+    }
+    else {
+        updatedMatch = await prisma.match.update({
+            where: { id: matchToUpdate.id },
+            data: {
+                userOneAction: currentOneAction,
+                userTwoAction: currentTwoAction,
+                expiresAt: expiry
+            }
+        });
+    }
+
+    return { ...updatedMatch, isMatch };
 }

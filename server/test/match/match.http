@@ -1,2 +1,5 @@
-###
+### Get aa user potentials
 GET http://localhost:3000/api/match/1
+
+### Get all users potentials 
+GET http://localhost:3000/api/match
